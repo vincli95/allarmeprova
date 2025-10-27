@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Operatore - Travel with Security (Interattiva V3)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+        }
+        
+        .bg-trenitalia-red { background-color: #d6001c; }
+        .text-trenitalia-red { color: #d6001c; }
+
+        /* Animazione Alert Principale */
+        @keyframes pulse-red {
+            0%, 100% { 
+                background-color: #d6001c; 
+                transform: scale(1); 
+                box-shadow: 0 10px 20px rgba(214, 0, 28, 0.3);
+            }
+            50% { 
+                background-color: #ff3c5a; 
+                transform: scale(1.01); 
+                box-shadow: 0 15px 30px rgba(255, 60, 90, 0.5);
+            }
+        }
+        .animate-pulse-red {
+            animation: pulse-red 1.5s infinite ease-in-out;
+        }
+
+        /* Stile Sedili Treno */
+        .seat {
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.65rem; font-weight: 600; border-radius: 0.25rem;
+            padding: 0.25rem; border: 1px solid; transition: all 0.1s;
+        }
+        .seat-available { background-color: #e2e8f0; border-color: #94a3b8; color: #475569; }
+        .seat-occupied { background-color: #ccfbf1; border-color: #5eead4; color: #0f766e; }
+        .seat-alert { 
+            background-color: #ef4444; border-color: #b91c1c; color: white; 
+            transform: scale(1.1); font-weight: 800;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
+        }
+
+        /* Stili Mappa */
+        .map-line { position: absolute; background-color: #94a3b8; z-index: 1; }
+        .map-station {
+            position: absolute; background-color: white; border: 2px solid #64748b;
+            border-radius: 9999px; padding: 0.25rem 0.5rem; font-size: 0.75rem;
+            font-weight: 600; z-index: 2; white-space: nowrap;
+        }
+        .map-station-hv { border: 2px solid #2563eb; color: #1d4ed8; }
+        
+        /* Animazione Treno (Posizione Alert) */
+        @keyframes train-move {
+            0% { left: 230px; }
+            50% { left: 240px; }
+            100% { left: 230px; }
+        }
+        .map-ping-container {
+            position: absolute;
+            top: 142px; left: 230px;
+            z-index: 3;
+        }
+        .map-ping-active {
+            animation: train-move 5s infinite alternate linear;
+        }
+        .map-ping-outer {
+            width: 32px; height: 32px; border-radius: 50%;
+            background-color: rgba(239, 68, 68, 0.3);
+            animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+        .map-ping-inner {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 16px; height: 16px; border-radius: 50%;
+            background-color: #d6001c; border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        @keyframes ping {
+            75%, 100% { transform: scale(1.5); opacity: 0; }
+        }
+
+
+        /* Stili per il Modal Pop-up */
+        #alert-modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 50; backdrop-filter: blur(4px);
+            transition: opacity 0.3s ease-in-out;
+            opacity: 0;
+            pointer-events: none;
+        }
+        #alert-modal-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        #alert-modal-content {
+            background-color: white; border-radius: 0.75rem; padding: 2rem;
+            width: 90%; max-width: 500px; text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            transform: scale(0.8);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #alert-modal-overlay.show #alert-modal-content {
+            transform: scale(1);
+        }
+
+        /* Stili Notifiche Chiamata */
+        #call-toast {
+            position: fixed; top: 4rem; right: 2rem;
+            z-index: 45; background-color: #10b981; color: white;
+            padding: 1rem 1.5rem; border-radius: 0.5rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transform: translateX(150%);
+            transition: transform 0.4s ease-out;
+        }
+        #call-toast.show {
+            transform: translateX(0);
+        }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <div id="call-toast" class="flex items-center space-x-3">
+        <i data-lucide="phone-call" class="w-6 h-6 animate-pulse"></i>
+        <div>
+            <p class="font-bold">Chiamata in corso</p>
+            <p class="text-sm" id="call-toast-details">Contattando Personale...</p>
+        </div>
+    </div>
+
+
+    <div id="alert-modal-overlay" class="hidden">
+        <div id="alert-modal-content">
+            <div class="modal-icon">
+                <i data-lucide="siren" class="w-12 h-12"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-gray-900 mb-3">NUOVO ALERT RILEVATO</h2>
+            <p class="text-gray-600 mb-4">Un utente a bordo ha attivato un allarme di sicurezza.</p>
+            <div id="modal-alert-details" class="text-left bg-red-50 border-l-4 border-trenitalia-red p-4 rounded-lg mb-6">
+                </div>
+            <button onclick="acknowledgeAlert()" id="acknowledge-button" class="w-full bg-trenitalia-red hover:bg-red-800 text-white text-xl font-bold py-4 rounded-lg transition-all duration-200">
+                PRENDI IN CARICO
+            </button>
+        </div>
+    </div>
+
+    <button onclick="simulateNewAlert()" class="fixed bottom-4 right-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full shadow-lg z-40 flex items-center">
+        <i data-lucide="bell-ring" class="w-5 h-5 mr-2"></i>
+        Simula Nuovo Alert
+    </button>
+
+    <aside class="w-72 bg-trenitalia-red text-white p-6 flex flex-col justify-between shadow-xl z-20">
+        <div>
+            <div class="p-3 bg-white text-trenitalia-red rounded-lg font-bold text-center text-lg mb-10 shadow-md">
+                Operatore XYZ
+            </div>
+            
+            <nav class="space-y-4">
+                <button id="nav-dashboard" onclick="navigate('dashboard-view')" class="w-full text-left bg-white/20 hover:bg-white/30 transition-all duration-200 p-3 rounded-lg font-semibold flex items-center text-lg">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5 mr-3"></i>
+                    Dashboard Attiva
+                </button>
+                <button id="nav-search" onclick="navigate('search-view')" class="w-full text-left bg-white/10 hover:bg-white/30 transition-all duration-200 p-3 rounded-lg font-semibold flex items-center text-lg">
+                    <i data-lucide="search" class="w-5 h-5 mr-3"></i>
+                    Ricerca Segnalazioni
+                </button>
+                <button id="nav-history" onclick="navigate('history-view')" class="w-full text-left bg-white/10 hover:bg-white/30 transition-all duration-200 p-3 rounded-lg font-semibold flex items-center text-lg">
+                    <i data-lucide="history" class="w-5 h-5 mr-3"></i>
+                    Storico Segnalazioni
+                </button>
+            </nav>
+        </div>
+        
+        <div class="text-center">
+            <p class="text-xl font-extrabold leading-tight">TRAVEL<span class="text-sm font-normal align-top">with</span></p>
+            <p class="text-3xl font-extrabold leading-none -mt-2">SECURITY</p>
+        </div>
+    </aside>
+
+    <main id="main-content" class="flex-1 p-8 overflow-y-auto bg-gray-100 flex flex-col">
+
+        <div id="idle-view" class="h-full flex flex-col items-center justify-center text-gray-500 text-center">
+            <i data-lucide="check-circle" class="w-32 h-32 mb-4 text-green-500"></i>
+            <h1 class="text-4xl font-bold mb-2">Nessuna segnalazione attiva</h1>
+            <p class="text-xl">Il sistema è stabile. Premi "Simula Nuovo Alert" per iniziare.</p>
+        </div>
+
+        <div id="dashboard-view" class="hidden flex-grow flex flex-col">
+            <div class="grid grid-cols-4 gap-6 mb-6">
+                <div class="col-span-2 bg-white rounded-lg shadow-lg overflow-hidden">
+                    <h2 class="p-3 bg-trenitalia-red text-white text-lg font-bold">Informazioni Utente</h2>
+                    <div class="p-4 grid grid-cols-4 gap-4 items-center">
+                        <div class="flex justify-center items-center">
+                            <i data-lucide="user-check" class="w-16 h-16 text-gray-700"></i>
+                        </div>
+                        <div class="col-span-3 text-gray-800">
+                            <p class="text-md"><span class="font-semibold">Nome:</span> <span id="user-name">--</span></p>
+                            <p class="text-md"><span class="font-semibold">Treno:</span> <span id="train-number">--</span></p>
+                            <p class="text-md"><span class="font-semibold">Recapito:</span> <span id="user-phone">--</span></p>
+                        </div>
+                    </div>
+                </div>
+                <div id="alert-type-box" class="col-span-1 bg-trenitalia-red text-white rounded-lg shadow-2xl flex flex-col">
+                    <h2 class="p-3 bg-white/20 text-lg font-bold text-center uppercase">Alert Tipo</h2>
+                    <div class="p-4 flex flex-col items-center justify-center flex-grow">
+                        <i id="alert-icon" data-lucide="shield" class="w-12 h-12"></i>
+                        <h3 id="alert-type" class="text-xl font-bold mt-2 text-center">--</h3>
+                    </div>
+                </div>
+                <div class="col-span-1 bg-white rounded-lg shadow-lg overflow-hidden">
+                    <h2 class="p-3 bg-gray-700 text-white text-lg font-bold flex items-center">
+                        <i data-lucide="message-square" class="w-4 h-4 mr-2"></i> Log Azioni
+                    </h2>
+                    <div id="log-feed" class="p-3 text-sm h-[130px] overflow-y-auto space-y-2">
+                        </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-6 mb-6 flex-grow">
+                <div class="col-span-2 bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
+                    <h2 class="p-4 bg-trenitalia-red text-white text-xl font-bold">Localizzazione</h2>
+                    <div class="grid grid-cols-2 gap-6 p-6 flex-grow">
+                        <div class="flex flex-col">
+                            <h3 class="text-lg font-bold text-gray-800 mb-3">Layout Treno (Carrozza)</h3>
+                            <div class="p-4 border-2 border-gray-300 rounded-lg bg-gray-50 flex-grow">
+                                <h4 class="font-bold text-center text-gray-700 mb-3" id="seat-car">--</h4>
+                                <div class="grid grid-cols-6 gap-2">
+                                    <div class="seat seat-alert" id="seat-position">--</div>
+                                    <div class="seat seat-available">1B</div>
+                                    <div class="col-span-2"></div>
+                                    <div class="seat seat-occupied">1C</div>
+                                    <div class="seat seat-available">1D</div>
+                                    <div class="seat seat-occupied">2A</div>
+                                    <div class="seat seat-available">2B</div>
+                                    <div class="col-span-2"></div>
+                                    <div class="seat seat-available">2C</div>
+                                    <div class="seat seat-available">2D</div>
+                                </div>
+                                <p class="text-xs text-center text-gray-500 mt-4">Posto evidenziato in rosso.</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-col">
+                            <h3 class="text-lg font-bold text-gray-800 mb-3">Mappa Linea (Simulazione)</h3>
+                            <div class="p-4 border-2 border-gray-300 rounded-lg bg-gray-50 h-full relative overflow-hidden">
+                                <div class="map-line h-1.5 w-full" style="top: 100px;"></div>
+                                <div class="map-line w-1.5 h-full" style="left: 180px; top: 0;"></div>
+                                <div class="map-line h-1.5 w-1/2 bg-blue-500" style="top: 150px; left: 180px;"></div>
+                                <div class="map-station" style="top: 88px; left: 20px;">Roma AV</div>
+                                <div class="map-station" style="top: 88px; left: 195px;">Cassino</div>
+                                <div class="map-station map-station-hv" style="top: 138px; left: 280px;">Afragola AV</div>
+                                <div class="map-ping-container" id="map-ping-alert">
+                                    <div class="map-ping-outer"></div>
+                                    <div class="map-ping-inner"></div>
+                                </div>
+                                <p class="text-xs text-red-600 absolute bottom-1 right-1 bg-white/80 p-1 rounded font-bold">IN MOVIMENTO</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-span-1 space-y-6">
+                    <div class="bg-white p-6 rounded-lg shadow-lg text-gray-800">
+                        <h3 class="text-sm font-bold uppercase text-gray-500 mb-2">Personale Attestato</h3>
+                        <p class="text-xl font-bold flex items-center" id="staff-name-display">--</p>
+                        <p class="text-md font-semibold" id="staff-phone-display">--</p>
+                        <button onclick="simulateCall()" class="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-all">
+                            Contatta Personale
+                        </button>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-lg text-gray-800">
+                        <h3 class="text-sm font-bold uppercase text-gray-500 mb-2">Posizione a Bordo</h3>
+                        <p class="text-xl font-bold flex items-center" id="position-details">--</p>
+                        <p class="text-md font-semibold" id="last-update">--</p>
+                        <button class="mt-3 w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded transition-all">
+                            Visualizza Piantina
+                        </button>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-lg shadow-lg text-gray-800">
+                        <h3 class="text-sm font-bold uppercase text-gray-500 mb-2">Chiusura Intervento</h3>
+                        <p class="text-sm font-semibold text-gray-600 mb-3">Concludi l'alert solo a risoluzione avvenuta.</p>
+                        <button onclick="closeAlert()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded transition-all">
+                            Chiudi Segnalazione
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="search-view" class="hidden h-full flex flex-col">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">Ricerca Segnalazioni</h1>
+            <div class="flex space-x-3 mb-6">
+                <input type="text" placeholder="Cerca per ID, Treno, Utente..." class="flex-grow p-3 rounded-lg border-2 border-gray-300 focus:border-blue-500">
+                <button class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg flex items-center">
+                    <i data-lucide="search" class="w-5 h-5 mr-2"></i> Cerca
+                </button>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-lg flex-grow overflow-y-auto">
+                <h2 class="text-xl font-bold text-gray-700 mb-4">Risultati (Simulazione)</h2>
+                <div class="space-y-4">
+                    <div class="p-4 bg-gray-50 border-l-4 border-green-500 rounded-r-lg shadow-sm hover:bg-gray-100 transition cursor-pointer">
+                        <p class="font-bold text-gray-900">ID: #004512 - Treno: AV9403</p>
+                        <p class="text-sm text-gray-600">Tipo: Emergenza Medica | Utente: Sofia Bianchi | Data: 25/10/2025</p>
+                        <p class="text-xs text-green-600 mt-1">Stato: Risolta</p>
+                    </div>
+                    <div class="p-4 bg-gray-50 border-l-4 border-orange-500 rounded-r-lg shadow-sm hover:bg-gray-100 transition cursor-pointer">
+                        <p class="font-bold text-gray-900">ID: #004511 - Treno: R21060</p>
+                        <p class="text-sm text-gray-600">Tipo: Furto | Utente: Marco Verdi | Data: 24/10/2025</p>
+                        <p class="text-xs text-orange-600 mt-1">Stato: In Sospeso</p>
+                    </div>
+                    <div class="p-4 bg-gray-50 border-l-4 border-red-500 rounded-r-lg shadow-sm hover:bg-gray-100 transition cursor-pointer">
+                        <p class="font-bold text-gray-900">ID: #004510 - Treno: AV9668</p>
+                        <p class="text-sm text-gray-600">Tipo: Molestia Personale | Utente: Mario Rossi | Data: 23/10/2025</p>
+                        <p class="text-xs text-red-600 mt-1">Stato: Chiusa con Intervento</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="history-view" class="hidden h-full flex flex-col">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">Storico Segnalazioni</h1>
+            <div class="bg-white p-6 rounded-lg shadow-lg flex-grow overflow-y-auto">
+                <h2 class="text-xl font-bold text-gray-700 mb-4 flex items-center justify-between">
+                    Registro Completo <i data-lucide="calendar" class="w-5 h-5 text-gray-500"></i>
+                </h2>
+                <div class="space-y-3">
+                    <div class="p-3 border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition cursor-pointer">
+                        <div>
+                            <p class="font-semibold text-gray-900">#004512 - Emergenza Medica (AV9403)</p>
+                            <p class="text-sm text-gray-500">25/10/2025 10:30 | Tempo Risoluzione: 12 min</p>
+                        </div>
+                        <i data-lucide="check-circle" class="w-6 h-6 text-green-500"></i>
+                    </div>
+                    <div class="p-3 border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition cursor-pointer">
+                        <div>
+                            <p class="font-semibold text-gray-900">#004511 - Furto (R21060)</p>
+                            <p class="text-sm text-gray-500">24/10/2025 18:45 | Tempo Risoluzione: 25 min</p>
+                        </div>
+                        <i data-lucide="alert-triangle" class="w-6 h-6 text-orange-500"></i>
+                    </div>
+                    <div class="p-3 border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition cursor-pointer">
+                        <div>
+                            <p class="font-semibold text-gray-900">#004510 - Molestia Personale (AV9668)</p>
+                            <p class="text-sm text-gray-500">23/10/2025 19:20 | Tempo Risoluzione: 8 min</p>
+                        </div>
+                        <i data-lucide="shield-check" class="w-6 h-6 text-red-500"></i>
+                    </div>
+                    <div class="p-3 border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition cursor-pointer opacity-50">
+                        <div>
+                            <p class="font-semibold text-gray-900">#004509 - Emergenza Silenziosa (R450)</p>
+                            <p class="text-sm text-gray-500">23/10/2025 08:15 | Tempo Risoluzione: 30 min</p>
+                        </div>
+                        <i data-lucide="x-circle" class="w-6 h-6 text-gray-400"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // Stato dell'applicazione
+        const appState = {
+            currentView: 'idle-view',
+            activeAlert: null
+        };
+
+        // Dati simulati per l'alert
+        const simulatedAlertData = {
+            nome: "Mario Rossi",
+            treno: "9668",
+            recapito: "321 654 987",
+            tipologia: "Molestia Personale",
+            icona: "users",
+            personale: "Fs Security",
+            telPersonale: "369 852 147",
+            carrozza: "Carr. 10",
+            posto: "Posto 1A",
+            rilevamento: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+        };
+
+        // Funzione per navigare tra le viste principali
+        function navigate(viewId) {
+            // Rimuovi la classe active da tutti i pulsanti della sidebar
+            document.querySelectorAll('aside nav button').forEach(btn => {
+                btn.classList.remove('bg-white/30');
+            });
+
+            // Nascondi tutte le viste
+            document.getElementById('idle-view').classList.add('hidden');
+            document.getElementById('dashboard-view').classList.add('hidden');
+            document.getElementById('search-view').classList.add('hidden');
+            document.getElementById('history-view').classList.add('hidden');
+            
+            // Logica di fallback e navigazione
+            let finalViewId = viewId;
+            if (viewId === 'dashboard-view' && !appState.activeAlert) {
+                finalViewId = 'idle-view';
+            }
+
+            const targetView = document.getElementById(finalViewId);
+            if (targetView) {
+                targetView.classList.remove('hidden');
+                appState.currentView = finalViewId;
+                
+                // Aggiorna lo stile del pulsante cliccato
+                const navButton = document.getElementById(`nav-${viewId.split('-')[0]}`);
+                if (navButton) {
+                     navButton.classList.add('bg-white/30');
+                }
+            }
+            
+            lucide.createIcons();
+        }
+
+        // Aggiunge un messaggio al log
+        function addLogEntry(message, type = 'info') {
+            const logFeed = document.getElementById('log-feed');
+            const color = type === 'alert' ? 'text-red-600 font-bold' : (type === 'action' ? 'text-blue-600' : 'text-gray-700');
+            const icon = type === 'alert' ? '!!' : (type === 'action' ? '->' : 'i');
+            
+            const time = new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            const logItem = document.createElement('p');
+            logItem.className = `text-xs ${color}`;
+            logItem.innerHTML = `<span class="text-gray-500 mr-2">${time}</span> ${icon} ${message}`;
+            
+            logFeed.prepend(logItem); // Inserisce in cima
+            // Pulisce il log se troppo pieno
+            while (logFeed.children.length > 10) {
+                logFeed.removeChild(logFeed.lastChild);
+            }
+        }
+
+        // --- Funzioni per il flusso di Alert ---
+
+        // 1. Simula l'arrivo di un nuovo alert
+        function simulateNewAlert() {
+            if (appState.activeAlert) {
+                alert("È già presente un alert attivo. Chiuderlo prima di simularne uno nuovo.");
+                return;
+            }
+            
+            appState.activeAlert = simulatedAlertData;
+            
+            // Popola e mostra il modal
+            const modalDetails = document.getElementById('modal-alert-details');
+            modalDetails.innerHTML = `
+                <p class="text-lg"><span class="font-semibold">Utente:</span> ${appState.activeAlert.nome}</p>
+                <p class="text-lg"><span class="font-semibold">Treno:</span> ${appState.activeAlert.treno}</p>
+                <p class="text-lg"><span class="font-semibold">Tipo:</span> ${appState.activeAlert.tipologia}</p>
+                <p class="text-lg"><span class="font-semibold">Posizione:</span> ${appState.activeAlert.carrozza}, ${appState.activeAlert.posto}</p>
+            `;
+            
+            document.getElementById('alert-modal-overlay').classList.remove('hidden');
+            document.getElementById('alert-modal-overlay').classList.add('show');
+
+            addLogEntry(`Nuova segnalazione da ${appState.activeAlert.nome} (Treno ${appState.activeAlert.treno})`, 'alert');
+            lucide.createIcons();
+        }
+
+        // 2. L'operatore prende in carico l'alert
+        function acknowledgeAlert() {
+            if (!appState.activeAlert) return;
+
+            const data = appState.activeAlert;
+
+            // Popola la dashboard con i dati dell'alert
+            document.getElementById('user-name').textContent = data.nome;
+            document.getElementById('train-number').textContent = `${data.treno} (AV)`;
+            document.getElementById('user-phone').textContent = data.recapito;
+            
+            document.getElementById('alert-type').textContent = data.tipologia;
+            document.getElementById('alert-icon').setAttribute('data-lucide', data.icona);
+            
+            document.getElementById('seat-car').textContent = data.carrozza;
+            document.getElementById('seat-position').textContent = data.posto.replace('Posto ', '');
+            
+            document.getElementById('staff-name-display').textContent = data.personale;
+            document.getElementById('staff-phone-display').textContent = data.telPersonale;
+            
+            document.getElementById('position-details').textContent = `${data.carrozza} - ${data.posto}`;
+            document.getElementById('last-update').textContent = `Rilevamento: ${data.rilevamento}`;
+
+            // Attiva l'animazione e la visibilità
+            document.getElementById('alert-type-box').classList.add('animate-pulse-red');
+            document.getElementById('map-ping-alert').classList.add('map-ping-active');
+            
+            // Nascondi il modal e vai alla dashboard
+            document.getElementById('alert-modal-overlay').classList.remove('show');
+            document.getElementById('alert-modal-overlay').classList.add('hidden'); // Nasconde completamente per evitare overlay
+            navigate('dashboard-view');
+            
+            addLogEntry(`Alert preso in carico. Contattato ${data.personale} a bordo.`, 'action');
+            lucide.createIcons();
+        }
+
+        // 3. L'operatore chiude l'alert
+        function closeAlert() {
+            // Conferma chiusura
+            if (!confirm("Sei sicuro di voler chiudere la segnalazione? L'intervento deve essere completato.")) {
+                return; 
+            }
+            
+            // Resetta i dati
+            appState.activeAlert = null;
+
+            // Resetta la UI
+            document.getElementById('alert-type-box').classList.remove('animate-pulse-red');
+            document.getElementById('map-ping-alert').classList.remove('map-ping-active');
+
+            // Log azione
+            addLogEntry(`Segnalazione chiusa e risolta. Sistema in stato IDLE.`, 'action');
+
+            // Torna alla schermata idle
+            navigate('idle-view');
+        }
+        
+        // Funzione per mostrare le notifiche (toast)
+        function showCallToast(message) {
+            const toast = document.getElementById('call-toast');
+            document.getElementById('call-toast-details').textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000); // Nascondi dopo 3 secondi
+            
+            addLogEntry(`Tentativo di contatto personale: ${message}`, 'info');
+        }
+
+        // Funzione per simulare la chiamata
+        function simulateCall() {
+            const staffName = document.getElementById('staff-name-display').textContent;
+            showCallToast(`Chiamata in corso verso ${staffName}...`);
+        }
+
+
+        // Inizializzazione all'avvio
+        document.addEventListener('DOMContentLoaded', () => {
+            navigate('idle-view');
+        });
+
+    </script>
+</body>
+</html>
