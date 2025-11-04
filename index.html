@@ -86,8 +86,8 @@
         }
 
 
-        /* Stili per il Modal Pop-up */
-        #alert-modal-overlay {
+        /* Stili per il Modal Pop-up (Alert e Generico) */
+        .modal-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background-color: rgba(0, 0, 0, 0.8);
             display: flex; align-items: center; justify-content: center;
@@ -96,18 +96,18 @@
             opacity: 0;
             pointer-events: none;
         }
-        #alert-modal-overlay.show {
+        .modal-overlay.show {
             opacity: 1;
             pointer-events: auto;
         }
-        #alert-modal-content {
+        .modal-content {
             background-color: white; border-radius: 0.75rem; padding: 2rem;
-            width: 90%; max-width: 500px; text-align: center;
+            width: 90%; max-width: 500px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.5);
             transform: scale(0.8);
             transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        #alert-modal-overlay.show #alert-modal-content {
+        .modal-overlay.show .modal-content {
             transform: scale(1);
         }
 
@@ -135,11 +135,10 @@
         </div>
     </div>
 
-
-    <div id="alert-modal-overlay" class="hidden">
-        <div id="alert-modal-content">
-            <div class="modal-icon">
-                <i data-lucide="siren" class="w-12 h-12"></i>
+    <div id="alert-modal-overlay" class="modal-overlay hidden">
+        <div id="alert-modal-content" class="modal-content text-center">
+            <div class="modal-icon mx-auto mb-4 bg-red-100 rounded-full w-16 h-16 flex items-center justify-center">
+                <i data-lucide="siren" class="w-12 h-12 text-trenitalia-red"></i>
             </div>
             <h2 class="text-3xl font-bold text-gray-900 mb-3">NUOVO ALERT RILEVATO</h2>
             <p class="text-gray-600 mb-4">Un utente a bordo ha attivato un allarme di sicurezza.</p>
@@ -150,6 +149,20 @@
             </button>
         </div>
     </div>
+
+    <div id="generic-modal-overlay" class="modal-overlay hidden" onclick="closeModal()">
+        <div id="generic-modal-content" class="modal-content" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="generic-modal-title" class="text-2xl font-bold text-gray-900"></h2>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+            <div id="generic-modal-body" class="text-gray-700">
+                </div>
+        </div>
+    </div>
+
 
     <button onclick="simulateNewAlert()" class="fixed bottom-4 right-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full shadow-lg z-40 flex items-center">
         <i data-lucide="bell-ring" class="w-5 h-5 mr-2"></i>
@@ -279,7 +292,7 @@
                         <h3 class="text-sm font-bold uppercase text-gray-500 mb-2">Posizione a Bordo</h3>
                         <p class="text-xl font-bold flex items-center" id="position-details">--</p>
                         <p class="text-md font-semibold" id="last-update">--</p>
-                        <button class="mt-3 w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded transition-all">
+                        <button onclick="showPiantina()" class="mt-3 w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded transition-all">
                             Visualizza Piantina
                         </button>
                     </div>
@@ -298,29 +311,48 @@
         <div id="search-view" class="hidden h-full flex flex-col">
             <h1 class="text-3xl font-bold text-gray-800 mb-6">Ricerca Segnalazioni</h1>
             <div class="flex space-x-3 mb-6">
-                <input type="text" placeholder="Cerca per ID, Treno, Utente..." class="flex-grow p-3 rounded-lg border-2 border-gray-300 focus:border-blue-500">
-                <button class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg flex items-center">
+                <input type="text" id="search-input" onkeyup="searchReports()" placeholder="Cerca per ID, Treno, Utente, Tipo..." class="flex-grow p-3 rounded-lg border-2 border-gray-300 focus:border-blue-500">
+                <button class="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg flex items-center opacity-50 cursor-not-allowed">
                     <i data-lucide="search" class="w-5 h-5 mr-2"></i> Cerca
                 </button>
             </div>
             <div class="bg-white p-6 rounded-lg shadow-lg flex-grow overflow-y-auto">
                 <h2 class="text-xl font-bold text-gray-700 mb-4">Risultati (Simulazione)</h2>
-                <div class="space-y-4">
-                    <div class="p-4 bg-gray-50 border-l-4 border-green-500 rounded-r-lg shadow-sm hover:bg-gray-100 transition cursor-pointer">
+                <div id="search-results-list" class="space-y-4">
+                    <div class="report-item p-4 bg-gray-50 border-l-4 border-green-500 rounded-r-lg shadow-sm hover:bg-gray-100 transition cursor-pointer" onclick="viewReportDetail('#004512')">
                         <p class="font-bold text-gray-900">ID: #004512 - Treno: AV9403</p>
                         <p class="text-sm text-gray-600">Tipo: Emergenza Medica | Utente: Sofia Bianchi | Data: 25/10/2025</p>
                         <p class="text-xs text-green-600 mt-1">Stato: Risolta</p>
                     </div>
-                    <div class="p-4 bg-gray-50 border-l-4 border-orange-500 rounded-r-lg shadow-sm hover:bg-gray-100 transition cursor-pointer">
+                    <div class="report-item p-4 bg-gray-50 border-l-4 border-orange-500 rounded-r-lg shadow-sm hover:bg-gray-100 transition cursor-pointer" onclick="viewReportDetail('#004511')">
                         <p class="font-bold text-gray-900">ID: #004511 - Treno: R21060</p>
                         <p class="text-sm text-gray-600">Tipo: Furto | Utente: Marco Verdi | Data: 24/10/2025</p>
                         <p class="text-xs text-orange-600 mt-1">Stato: In Sospeso</p>
                     </div>
-                    <div class="p-4 bg-gray-50 border-l-4 border-red-500 rounded-r-lg shadow-sm hover:bg-gray-100 transition cursor-pointer">
+                    <div class="report-item p-4 bg-gray-50 border-l-4 border-red-500 rounded-r-lg shadow-sm hover:bg-gray-100 transition cursor-pointer" onclick="viewReportDetail('#004510')">
                         <p class="font-bold text-gray-900">ID: #004510 - Treno: AV9668</p>
                         <p class="text-sm text-gray-600">Tipo: Molestia Personale | Utente: Mario Rossi | Data: 23/10/2025</p>
                         <p class="text-xs text-red-600 mt-1">Stato: Chiusa con Intervento</p>
                     </div>
+                    <div class="report-item p-4 bg-gray-50 border-l-4 border-red-500 rounded-r-lg shadow-sm hover:bg-gray-100 transition cursor-pointer" onclick="viewReportDetail('#004508')">
+                        <p class="font-bold text-gray-900">ID: #004508 - Treno: R450</p>
+                        <p class="text-sm text-gray-600">Tipo: Aggressione | Utente: Laura Neri | Data: 22/10/2025</p>
+                        <p class="text-xs text-red-600 mt-1">Stato: Chiusa con Intervento P.S.</p>
+                    </div>
+                    <div class="report-item p-4 bg-gray-50 border-l-4 border-orange-500 rounded-r-lg shadow-sm hover:bg-gray-100 transition cursor-pointer" onclick="viewReportDetail('#004507')">
+                        <p class="font-bold text-gray-900">ID: #004507 - Treno: AV9001</p>
+                        <p class="text-sm text-gray-600">Tipo: Danneggiamento | Utente: Personale | Data: 22/10/2025</p>
+                        <p class="text-xs text-orange-600 mt-1">Stato: In Sospeso</p>
+                    </div>
+                    <div class="report-item p-4 bg-gray-50 border-l-4 border-gray-400 rounded-r-lg shadow-sm hover:bg-gray-100 transition cursor-pointer" onclick="viewReportDetail('#004506')">
+                        <p class="font-bold text-gray-900">ID: #004506 - Treno: R1120</p>
+                        <p class="text-sm text-gray-600">Tipo: Allarme Bomba | Utente: Anonimo | Data: 21/10/2025</p>
+                        <p class="text-xs text-gray-600 mt-1">Stato: Chiusa (Falso Allarme)</p>
+                    </div>
+                </div>
+                <div id="no-results-message" class="hidden text-center text-gray-500 mt-8">
+                    <i data-lucide="search-x" class="w-12 h-12 mx-auto mb-2"></i>
+                    <p class="text-lg">Nessun risultato trovato.</p>
                 </div>
             </div>
         </div>
@@ -332,33 +364,54 @@
                     Registro Completo <i data-lucide="calendar" class="w-5 h-5 text-gray-500"></i>
                 </h2>
                 <div class="space-y-3">
-                    <div class="p-3 border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition cursor-pointer">
+                    <div class="p-3 border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition cursor-pointer" onclick="viewReportDetail('#004512')">
                         <div>
                             <p class="font-semibold text-gray-900">#004512 - Emergenza Medica (AV9403)</p>
                             <p class="text-sm text-gray-500">25/10/2025 10:30 | Tempo Risoluzione: 12 min</p>
                         </div>
                         <i data-lucide="check-circle" class="w-6 h-6 text-green-500"></i>
                     </div>
-                    <div class="p-3 border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition cursor-pointer">
+                    <div class="p-3 border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition cursor-pointer" onclick="viewReportDetail('#004511')">
                         <div>
                             <p class="font-semibold text-gray-900">#004511 - Furto (R21060)</p>
                             <p class="text-sm text-gray-500">24/10/2025 18:45 | Tempo Risoluzione: 25 min</p>
                         </div>
                         <i data-lucide="alert-triangle" class="w-6 h-6 text-orange-500"></i>
                     </div>
-                    <div class="p-3 border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition cursor-pointer">
+                    <div class="p-3 border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition cursor-pointer" onclick="viewReportDetail('#004510')">
                         <div>
                             <p class="font-semibold text-gray-900">#004510 - Molestia Personale (AV9668)</p>
                             <p class="text-sm text-gray-500">23/10/2025 19:20 | Tempo Risoluzione: 8 min</p>
                         </div>
                         <i data-lucide="shield-check" class="w-6 h-6 text-red-500"></i>
                     </div>
-                    <div class="p-3 border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition cursor-pointer opacity-50">
+                    <div class="p-3 border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition cursor-pointer opacity-50" onclick="viewReportDetail('#004509')">
                         <div>
                             <p class="font-semibold text-gray-900">#004509 - Emergenza Silenziosa (R450)</p>
                             <p class="text-sm text-gray-500">23/10/2025 08:15 | Tempo Risoluzione: 30 min</p>
                         </div>
                         <i data-lucide="x-circle" class="w-6 h-6 text-gray-400"></i>
+                    </div>
+                    <div class="p-3 border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition cursor-pointer" onclick="viewReportDetail('#004508')">
+                        <div>
+                            <p class="font-semibold text-gray-900">#004508 - Aggressione (R450)</p>
+                            <p class="text-sm text-gray-500">22/10/2025 12:10 | Tempo Risoluzione: 14 min</p>
+                        </div>
+                        <i data-lucide="shield-check" class="w-6 h-6 text-red-500"></i>
+                    </div>
+                    <div class="p-3 border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition cursor-pointer" onclick="viewReportDetail('#004507')">
+                        <div>
+                            <p class="font-semibold text-gray-900">#004507 - Danneggiamento (AV9001)</p>
+                            <p class="text-sm text-gray-500">22/10/2025 09:00 | Tempo Risoluzione: -</p>
+                        </div>
+                        <i data-lucide="alert-triangle" class="w-6 h-6 text-orange-500"></i>
+                    </div>
+                    <div class="p-3 border-b border-gray-100 flex justify-between items-center hover:bg-gray-50 transition cursor-pointer" onclick="viewReportDetail('#004506')">
+                        <div>
+                            <p class="font-semibold text-gray-900">#004506 - Allarme Bomba (R1120)</p>
+                            <p class="text-sm text-gray-500">21/10/2025 16:30 | Tempo Risoluzione: 65 min</p>
+                        </div>
+                        <i data-lucide="check-circle" class="w-6 h-6 text-green-500"></i>
                     </div>
                 </div>
             </div>
@@ -392,6 +445,7 @@
             // Rimuovi la classe active da tutti i pulsanti della sidebar
             document.querySelectorAll('aside nav button').forEach(btn => {
                 btn.classList.remove('bg-white/30');
+                btn.classList.add('bg-white/10');
             });
 
             // Nascondi tutte le viste
@@ -412,8 +466,11 @@
                 appState.currentView = finalViewId;
                 
                 // Aggiorna lo stile del pulsante cliccato
-                const navButton = document.getElementById(`nav-${viewId.split('-')[0]}`);
+                const navButtonId = finalViewId.startsWith('dashboard') ? 'nav-dashboard' : `nav-${finalViewId.split('-')[0]}`;
+                const navButton = document.getElementById(navButtonId);
+                
                 if (navButton) {
+                     navButton.classList.remove('bg-white/10');
                      navButton.classList.add('bg-white/30');
                 }
             }
@@ -424,6 +481,12 @@
         // Aggiunge un messaggio al log
         function addLogEntry(message, type = 'info') {
             const logFeed = document.getElementById('log-feed');
+            
+            // Se il log-feed non è visibile (siamo in idle-view), non aggiungere nulla
+            if (!logFeed || logFeed.offsetParent === null) {
+                return;
+            }
+
             const color = type === 'alert' ? 'text-red-600 font-bold' : (type === 'action' ? 'text-blue-600' : 'text-gray-700');
             const icon = type === 'alert' ? '!!' : (type === 'action' ? '->' : 'i');
             
@@ -462,8 +525,6 @@
             
             document.getElementById('alert-modal-overlay').classList.remove('hidden');
             document.getElementById('alert-modal-overlay').classList.add('show');
-
-            addLogEntry(`Nuova segnalazione da ${appState.activeAlert.nome} (Treno ${appState.activeAlert.treno})`, 'alert');
             lucide.createIcons();
         }
 
@@ -472,6 +533,11 @@
             if (!appState.activeAlert) return;
 
             const data = appState.activeAlert;
+            
+            // Pulisci il log precedente
+             document.getElementById('log-feed').innerHTML = '';
+            
+            addLogEntry(`Nuova segnalazione da ${data.nome} (Treno ${data.treno})`, 'alert');
 
             // Popola la dashboard con i dati dell'alert
             document.getElementById('user-name').textContent = data.nome;
@@ -496,7 +562,10 @@
             
             // Nascondi il modal e vai alla dashboard
             document.getElementById('alert-modal-overlay').classList.remove('show');
-            document.getElementById('alert-modal-overlay').classList.add('hidden'); // Nasconde completamente per evitare overlay
+            setTimeout(() => { // Attendi la fine dell'animazione di fade-out
+                 document.getElementById('alert-modal-overlay').classList.add('hidden');
+            }, 300);
+           
             navigate('dashboard-view');
             
             addLogEntry(`Alert preso in carico. Contattato ${data.personale} a bordo.`, 'action');
@@ -505,22 +574,35 @@
 
         // 3. L'operatore chiude l'alert
         function closeAlert() {
-            // Conferma chiusura
+            if (!appState.activeAlert) {
+                alert("Nessun alert attivo da chiudere.");
+                return;
+            }
+            
             if (!confirm("Sei sicuro di voler chiudere la segnalazione? L'intervento deve essere completato.")) {
                 return; 
             }
             
-            // Resetta i dati
+            addLogEntry(`Segnalazione chiusa e risolta. Sistema in stato IDLE.`, 'action');
+            
             appState.activeAlert = null;
 
-            // Resetta la UI
             document.getElementById('alert-type-box').classList.remove('animate-pulse-red');
             document.getElementById('map-ping-alert').classList.remove('map-ping-active');
+            
+            // Svuota i campi
+            document.getElementById('user-name').textContent = '--';
+            document.getElementById('train-number').textContent = '--';
+            document.getElementById('user-phone').textContent = '--';
+            document.getElementById('alert-type').textContent = '--';
+            document.getElementById('alert-icon').setAttribute('data-lucide', 'shield');
+            document.getElementById('seat-car').textContent = '--';
+            document.getElementById('seat-position').textContent = '--';
+            document.getElementById('staff-name-display').textContent = '--';
+            document.getElementById('staff-phone-display').textContent = '--';
+            document.getElementById('position-details').textContent = '--';
+            document.getElementById('last-update').textContent = '--';
 
-            // Log azione
-            addLogEntry(`Segnalazione chiusa e risolta. Sistema in stato IDLE.`, 'action');
-
-            // Torna alla schermata idle
             navigate('idle-view');
         }
         
@@ -538,8 +620,132 @@
 
         // Funzione per simulare la chiamata
         function simulateCall() {
+            if (!appState.activeAlert) {
+                alert("Nessun alert attivo. Impossibile contattare il personale.");
+                return;
+            }
             const staffName = document.getElementById('staff-name-display').textContent;
             showCallToast(`Chiamata in corso verso ${staffName}...`);
+        }
+        
+        
+        // --- **** NUOVE FUNZIONI MODALI E INTERATTIVE **** ---
+
+        /**
+         * Apre il modal generico con un titolo e un contenuto HTML.
+         */
+        function openModal(title, contentHtml) {
+            document.getElementById('generic-modal-title').textContent = title;
+            document.getElementById('generic-modal-body').innerHTML = contentHtml;
+            
+            const modalOverlay = document.getElementById('generic-modal-overlay');
+            modalOverlay.classList.remove('hidden');
+            modalOverlay.classList.add('show');
+            lucide.createIcons();
+        }
+        
+        /**
+         * Chiude il modal generico.
+         */
+        function closeModal() {
+            const modalOverlay = document.getElementById('generic-modal-overlay');
+            modalOverlay.classList.remove('show');
+            setTimeout(() => {
+                 modalOverlay.classList.add('hidden');
+            }, 300); // Attendi l'animazione
+        }
+
+        /**
+         * Simula la visualizzazione della piantina usando il modal.
+         * **** MODIFICA QUI: Sostituita img con layout HTML ****
+         */
+        function showPiantina() {
+            if (!appState.activeAlert) {
+                alert("Nessun alert attivo. Impossibile mostrare la piantina.");
+                return;
+            }
+            
+            const carrozza = appState.activeAlert.carrozza;
+            const posto = appState.activeAlert.posto;
+            const postoNum = posto.replace('Posto ', '');
+            
+            const title = `Piantina Dettagliata - ${carrozza}`;
+            const content = `
+                <p class="mb-4">Visualizzazione layout per la <strong>${carrozza}</strong>. Posizione alert: <strong>${posto}</strong></p>
+                <div class="bg-gray-100 p-4 rounded-lg border-2 border-gray-400">
+                    <p class="text-xs font-bold text-gray-500 text-center mb-2">DIREZIONE TRENO -> </p>
+                    <div class="grid grid-cols-5 gap-2" style="font-size: 0.7rem; padding: 0.2rem;">
+                        <div class="seat seat-available">5A</div>
+                        <div class="seat seat-available">5B</div>
+                        <div class="col-span-1"></div> <div class="seat seat-occupied">5C</div>
+                        <div class="seat seat-available">5D</div>
+                        
+                        <div class="seat seat-alert shadow-lg">${postoNum}</div>
+                        <div class="seat seat-available">1B</div>
+                        <div class="col-span-1"></div> <div class="seat seat-occupied">1C</div>
+                        <div class="seat seat-available">1D</div>
+
+                        <div class="seat seat-occupied">2A</div>
+                        <div class="seat seat-available">2B</div>
+                        <div class="col-span-1"></div> <div class="seat seat-available">2C</div>
+                        <div class="seat seat-available">2D</div>
+                        
+                        <div class="seat seat-available">3A</div>
+                        <div class="seat seat-available">3B</div>
+                        <div class="col-span-1"></div> <div class="seat seat-occupied">3C</div>
+                        <div class="seat seat-occupied">3D</div>
+                    </div>
+                </div>
+            `;
+            
+            openModal(title, content);
+            addLogEntry('Richiesta piantina carrozza.', 'info');
+        }
+
+        /**
+         * Filtra la lista dei report nella pagina "Ricerca"
+         */
+        function searchReports() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const reports = document.querySelectorAll('#search-results-list .report-item');
+            const noResultsMsg = document.getElementById('no-results-message');
+            
+            let resultsFound = false;
+
+            reports.forEach(report => {
+                const reportText = report.textContent.toLowerCase();
+                if (reportText.includes(searchTerm)) {
+                    report.style.display = 'block';
+                    resultsFound = true;
+                } else {
+                    report.style.display = 'none';
+                }
+            });
+            
+            if (resultsFound) {
+                noResultsMsg.classList.add('hidden');
+            } else {
+                noResultsMsg.classList.remove('hidden');
+            }
+            lucide.createIcons(); // Per l'icona "Nessun risultato"
+        }
+
+        /**
+         * Simula l'apertura dei dettagli di un report usando il modal.
+         */
+        function viewReportDetail(reportId) {
+            const title = `Dettaglio Report ${reportId}`;
+            const content = `
+                <p>Qui verrebbero mostrate tutte le informazioni e i log per il report <strong>${reportId}</strong>.</p>
+                <br>
+                <div class="text-left bg-gray-50 border-l-4 border-gray-400 p-4 rounded-lg">
+                    <p><span class="font-semibold">ID:</span> ${reportId}</p>
+                    <p><span class="font-semibold">Stato:</span> Risolto (Simulazione)</p>
+                    <p><span class="font-semibold">Operatore:</span> Operatore XYZ</p>
+                    <p><span class="font-semibold">Data Chiusura:</span> 25/10/2025 10:42</p>
+                </div>
+            `;
+            openModal(title, content);
         }
 
 
